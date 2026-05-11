@@ -1,0 +1,90 @@
+const crypto = require("crypto");
+
+function hash(message) {
+    return crypto.createHash("sha256").update(message).digest("hex");
+}
+
+class Block {
+    constructor(prevHash, data) {
+        this.prevHash = prevHash;
+        this.data = data;
+        this.timestamp = new Date();
+
+        this.mineVar = 0;
+        this.hash = this.calculateHash();
+    }
+    
+    calculateHash() {
+        return hash(this.prevHash + JSON.stringify(this.data) + this.timestamp.toISOString() + this.mineVar.toString());
+    }
+    
+    mine(difficulty) {
+        while (!this.hash.startsWith("0".repeat(difficulty))) {
+            this.mineVar++;
+            this.hash = this.calculateHash();
+        }
+    }
+}
+
+class Blockchain {
+    constructor(difficulty) {
+        const genesisBlock = new Block("0000", { isGenesis: true });
+        this.difficulty = difficulty;
+        this.chain = [genesisBlock];
+    }
+
+    getLastBlock() {
+        return this.chain[this.chain.length - 1];
+    }
+
+    addBlock(data) {
+        const lastBlock = this.getLastBlock();
+        const newBlock = new Block(lastBlock.hash, data);
+
+        console.log("mining...");
+        console.time("mining");
+        newBlock.mine(this.difficulty);
+        console.timeEnd("mining");
+        console.log(newBlock);
+
+        this.chain.push(newBlock);
+    }
+
+    isValid() {
+        for (let i = 1; i < this.chain.length; i++) {
+            const currentBlock = this.chain[i];
+            const previousBlock = this.chain[i - 1];
+
+            if (currentBlock.hash !== currentBlock.calculateHash()) {
+                return false;
+            }
+
+            if (currentBlock.prevHash !== previousBlock.hash) {
+                return false;
+            }
+        }
+        return true;
+    }
+}
+
+const testChain = new Blockchain(4);
+console.log(testChain);
+
+testChain.addBlock({
+    from: "Vinh",
+    to: "Kien",
+    amount: 100
+});
+
+testChain.addBlock({
+    from: "Kien",
+    to: "Gioi",
+    amount: 50
+});
+
+console.log(testChain.chain);
+console.log("blockchain hop le:", testChain.isValid());
+
+testChain.chain[1].hash = testChain.chain[1].calculateHash();
+
+console.log("blockchain hop le:", testChain.isValid());
