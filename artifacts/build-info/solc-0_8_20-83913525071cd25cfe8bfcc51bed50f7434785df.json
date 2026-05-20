@@ -1,0 +1,42 @@
+{
+  "_format": "hh3-sol-build-info-1",
+  "id": "solc-0_8_20-83913525071cd25cfe8bfcc51bed50f7434785df",
+  "solcVersion": "0.8.20",
+  "solcLongVersion": "0.8.20+commit.a1b79de6",
+  "compilerType": "solc",
+  "userSourceNameMap": {
+    "contracts/TruySuatNongSan.sol": "project/contracts/TruySuatNongSan.sol"
+  },
+  "input": {
+    "language": "Solidity",
+    "settings": {
+      "evmVersion": "shanghai",
+      "outputSelection": {
+        "*": {
+          "": [
+            "ast"
+          ],
+          "*": [
+            "abi",
+            "evm.bytecode.linkReferences",
+            "evm.bytecode.object",
+            "evm.bytecode.opcodes",
+            "evm.bytecode.sourceMap",
+            "evm.deployedBytecode.immutableReferences",
+            "evm.deployedBytecode.linkReferences",
+            "evm.deployedBytecode.object",
+            "evm.deployedBytecode.opcodes",
+            "evm.deployedBytecode.sourceMap",
+            "evm.methodIdentifiers"
+          ]
+        }
+      },
+      "remappings": []
+    },
+    "sources": {
+      "project/contracts/TruySuatNongSan.sol": {
+        "content": "// SPDX-License-Identifier: MIT\npragma solidity ^0.8.0;\n\ncontract TruySuatNongSan {\n    \n    struct SanPham {\n        string ten;\n        string lichSu;\n        address nguoiSoHuu;\n        bool tonTai;\n    }\n    \n    mapping(uint256 => SanPham) public danhSachSanPham;\n    \n    event LoHangDuocTao(uint256 id, string ten, address nguoiTao);\n    event CapNhatTrangThaiMoi(uint256 id, string thongTinMoi);\n    \n    function taoMoiLoHang(uint256 _id, string memory _ten, string memory _thongTinDauTien) public {\n        require(!danhSachSanPham[_id].tonTai, \"Lo hang voi ID nay da ton tai.\");\n        \n        danhSachSanPham[_id] = SanPham({\n            ten: _ten,\n            lichSu: _thongTinDauTien,\n            nguoiSoHuu: msg.sender,\n            tonTai: true\n        });\n        \n        emit LoHangDuocTao(_id, _ten, msg.sender);\n    }\n    \n    function capNhatTrangThai(uint256 _id, string memory _thongTinMoi) public {\n        require(danhSachSanPham[_id].tonTai, \"Lo hang khong tonTai.\");\n        \n        SanPham storage sp = danhSachSanPham[_id];\n        \n        // Append lịch sử mới vào sau lịch sử cũ\n        sp.lichSu = string(abi.encodePacked(sp.lichSu, \" | \", _thongTinMoi));\n        sp.nguoiSoHuu = msg.sender;\n        \n        emit CapNhatTrangThaiMoi(_id, _thongTinMoi);\n    }\n}\n"
+      }
+    }
+  }
+}

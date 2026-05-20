@@ -1,0 +1,372 @@
+{
+  "chainName": "JavaScript Local Blockchain",
+  "mode": "demo-local-js",
+  "difficulty": 3,
+  "chain": [
+    {
+      "index": 0,
+      "prevHash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "data": {
+        "type": "GENESIS_BLOCK"
+      },
+      "timestamp": "2026-05-19T12:16:41.792Z",
+      "nonce": 0,
+      "hash": "a58bb475605dc64ff7c95294b7c8b36050403ca005b398d3dd0fed4449beac46"
+    },
+    {
+      "index": 1,
+      "prevHash": "a58bb475605dc64ff7c95294b7c8b36050403ca005b398d3dd0fed4449beac46",
+      "data": {
+        "type": "CREATE_PRODUCT",
+        "payload": {
+          "id": 1,
+          "ten": "Xoài Cát Chu Cao Lãnh (Tiêu chuẩn EVFTA)",
+          "thongTinDauTien": {
+            "giaiDoan": "Gieo Trồng",
+            "giong": "Xoài Cát Chu Đồng Tháp",
+            "nguonGoc": "Trung tâm Giống Cây Trồng Miền Nam",
+            "nhaCungCap": "HTX Xoài Mỹ Xương",
+            "ngayGieo": "2025-10-15",
+            "dienTich": "3.5 ha",
+            "chungNhan": "GlobalGAP #GG-4056231-VN"
+          },
+          "nguoiTao": "Nông hộ Trần Văn Cường"
+        }
+      },
+      "timestamp": "2026-05-19T12:16:41.793Z",
+      "nonce": 8745,
+      "hash": "000f1dab4210a5eab191511bd26285c0ec84ff3ed8c2fbd14c8844f29b0ef50a"
+    },
+    {
+      "index": 2,
+      "prevHash": "000f1dab4210a5eab191511bd26285c0ec84ff3ed8c2fbd14c8844f29b0ef50a",
+      "data": {
+        "type": "UPDATE_PRODUCT",
+        "payload": {
+          "id": 1,
+          "thongTinMoi": {
+            "giaiDoan": "Bón Phân",
+            "tenPhanBon": "Phân hữu cơ vi sinh Komix",
+            "loaiPhanBon": "Hữu cơ vi sinh",
+            "lieuLuong": "600 kg/ha",
+            "ngayBon": "2025-11-20",
+            "nguoiThucHien": "Trần Văn Cường"
+          },
+          "nguoiCapNhat": "Nông hộ Trần Văn Cường"
+        }
+      },
+      "timestamp": "2026-05-19T12:16:41.997Z",
+      "nonce": 811,
+      "hash": "0003fdf62281b35f3d72bbc232b86945655b9adb3f907e0a110226e5841fdb37"
+    },
+    {
+      "index": 3,
+      "prevHash": "0003fdf62281b35f3d72bbc232b86945655b9adb3f907e0a110226e5841fdb37",
+      "data": {
+        "type": "UPDATE_PRODUCT",
+        "payload": {
+          "id": 1,
+          "thongTinMoi": {
+            "giaiDoan": "Phun Thuốc BVTV",
+            "tenThuoc": "Thuốc trừ sâu sinh học Bt (Bacillus Thuringiensis)",
+            "hoatChat": "Bacillus thuringiensis spore",
+            "sauBenhHai": "Sâu đục quả quả xoài",
+            "lieuLuong": "1.5 lít/ha",
+            "ngayPhun": "2025-12-10",
+            "thoiGianCachLy": 7,
+            "ngayThuHoachAnToan": "2025-12-17",
+            "nguoiThucHien": "Lê Văn Bình"
+          },
+          "nguoiCapNhat": "HTX Xoài Mỹ Xương"
+        }
+      },
+      "timestamp": "2026-05-19T12:16:42.004Z",
+      "nonce": 4589,
+      "hash": "000e70208e4fe82c542ae3afbf1b483717fe73f330f678f76922731ec46f7041"
+    },
+    {
+      "index": 4,
+      "prevHash": "000e70208e4fe82c542ae3afbf1b483717fe73f330f678f76922731ec46f7041",
+      "data": {
+        "type": "UPDATE_PRODUCT",
+        "payload": {
+          "id": 1,
+          "thongTinMoi": {
+            "giaiDoan": "Thu Hoạch & Kiểm Định",
+            "ngayThuHoach": "2026-04-20",
+            "sanLuong": "12.5 tấn",
+            "nhaDongGoi": "Nhà đóng gói HTX Mỹ Xương",
+            "maKiemDinh": "MRL-2026-XC01",
+            "kiemDinhMRL": "Đạt chuẩn xuất khẩu EU (Dư lượng hoạt chất hóa học < 0.01 ppm)",
+            "chungNhanLab": "Trung tâm Kiểm nghiệm Eurofins Sắc Ký Hải Đăng"
+          },
+          "nguoiCapNhat": "Đại diện kiểm định GlobalGAP"
+        }
+      },
+      "timestamp": "2026-05-19T12:16:42.035Z",
+      "nonce": 1878,
+      "hash": "0003f93737303f7368dbec0ea055188cc0913d097bd4523ceb17a6666062cb17"
+    },
+    {
+      "index": 5,
+      "prevHash": "0003f93737303f7368dbec0ea055188cc0913d097bd4523ceb17a6666062cb17",
+      "data": {
+        "type": "UPDATE_PRODUCT",
+        "payload": {
+          "id": 1,
+          "thongTinMoi": {
+            "giaiDoan": "Vận Chuyển",
+            "donViLogistics": "Mekong Logistics Cold-Chain",
+            "phuongTien": "Container lạnh 64C-999.88",
+            "nhietDo": "7.8 °C",
+            "doAm": "82%",
+            "thoiGianKhoiHanh": "2026-04-22T09:00:00",
+            "thoiGianGiaoHang": "2026-05-15T14:30:00"
+          },
+          "nguoiCapNhat": "Mekong Logistics Co."
+        }
+      },
+      "timestamp": "2026-05-19T12:16:42.044Z",
+      "nonce": 1694,
+      "hash": "000966230b20effb8d768965a703b29b03051eba8c2537d8ba3aa6bd0a19dbc8"
+    },
+    {
+      "index": 6,
+      "prevHash": "000966230b20effb8d768965a703b29b03051eba8c2537d8ba3aa6bd0a19dbc8",
+      "data": {
+        "type": "UPDATE_PRODUCT",
+        "payload": {
+          "id": 1,
+          "thongTinMoi": {
+            "giaiDoan": "Bán Lẻ",
+            "sieuThi": "Lidl Supermarket - Berlin",
+            "diaChi": "Karl-Liebknecht-Str. 13, 10178 Berlin, Germany",
+            "nhietDoKe": "11.5 °C",
+            "ngayTiepNhan": "2026-05-18",
+            "trangThai": "Đang bày bán trên kệ hàng (EVFTA Approved)"
+          },
+          "nguoiCapNhat": "Lidl Berlin Store Manager"
+        }
+      },
+      "timestamp": "2026-05-19T12:16:42.053Z",
+      "nonce": 1322,
+      "hash": "000d81a1d27407710c40d6f319fd0c63b1158cbd3dee606fad16d727e638468b"
+    },
+    {
+      "index": 7,
+      "prevHash": "000d81a1d27407710c40d6f319fd0c63b1158cbd3dee606fad16d727e638468b",
+      "data": {
+        "type": "UPDATE_PRODUCT",
+        "payload": {
+          "id": 1,
+          "thongTinMoi": {
+            "id": "1",
+            "tenThuoc": "Chế phẩm sinh học trừ sâu Bt",
+            "hoatChat": "Bacillus thuringiensis spore",
+            "sauBenhHai": "Sâu đục quả xoài",
+            "lieuLuong": "1.5 lít/ha",
+            "ngayPhun": "2026-05-19",
+            "thoiGianCachLy": "5",
+            "nguoiThucHien": "Le Lam Vien",
+            "giaiDoan": "Phun Thuốc BVTV"
+          },
+          "nguoiCapNhat": "Le Lam Vien"
+        }
+      },
+      "timestamp": "2026-05-19T12:20:00.880Z",
+      "nonce": 7171,
+      "hash": "000796ffaba4fb86a9a823a34cbbd94f2927864e2c90b83a41d0e083b52810e3"
+    },
+    {
+      "index": 8,
+      "prevHash": "000796ffaba4fb86a9a823a34cbbd94f2927864e2c90b83a41d0e083b52810e3",
+      "data": {
+        "type": "CREATE_PRODUCT",
+        "payload": {
+          "id": 2,
+          "ten": "Xoài Cát Chu Đồng Tháp",
+          "thongTinDauTien": {
+            "giaiDoan": "Gieo Trồng",
+            "giong": "Xoài Cát Chu",
+            "nguonGoc": "Trung tâm Giống Cây Trồng Miền Nam",
+            "nhaCungCap": "Hợp tác xã Xoài Mỹ Xương",
+            "ngayGieo": "2026-05-19",
+            "dienTich": "3.5 ha",
+            "maChungNhan": "GlobalGAP #GG-2896407-VN"
+          },
+          "nguoiTao": "Nông hộ Trần Văn Cường"
+        }
+      },
+      "timestamp": "2026-05-19T16:31:59.618Z",
+      "nonce": 247,
+      "hash": "000048424c28c098bf934ba3359616d92b4c34966f97a5ddfd1df6cf7fe48c14"
+    },
+    {
+      "index": 9,
+      "prevHash": "000048424c28c098bf934ba3359616d92b4c34966f97a5ddfd1df6cf7fe48c14",
+      "data": {
+        "type": "UPDATE_PRODUCT",
+        "payload": {
+          "id": 2,
+          "thongTinMoi": {
+            "tenPhanBon": "Phân hữu cơ sinh học Komix",
+            "loaiPhanBon": "Broadcasting",
+            "lieuLuong": "600 kg/ha",
+            "ngayBon": "2026-05-19",
+            "nguoiThucHien": "Trần Văn Cường",
+            "giaiDoan": "Bón Phân"
+          },
+          "nguoiCapNhat": "Trần Văn Cường"
+        }
+      },
+      "timestamp": "2026-05-19T16:35:05.033Z",
+      "nonce": 125,
+      "hash": "000e26e1189f28e85035a33afdcf719c25bd9c0c1d3d38ce3b7aeb5adabe8e73"
+    }
+  ],
+  "products": {
+    "1": {
+      "id": 1,
+      "ten": "Xoài Cát Chu Cao Lãnh (Tiêu chuẩn EVFTA)",
+      "nguoiSoHuu": "Le Lam Vien",
+      "tonTai": true,
+      "lichSu": [
+        {
+          "step": 1,
+          "noiDung": {
+            "giaiDoan": "Gieo Trồng",
+            "giong": "Xoài Cát Chu Đồng Tháp",
+            "nguonGoc": "Trung tâm Giống Cây Trồng Miền Nam",
+            "nhaCungCap": "HTX Xoài Mỹ Xương",
+            "ngayGieo": "2025-10-15",
+            "dienTich": "3.5 ha",
+            "chungNhan": "GlobalGAP #GG-4056231-VN"
+          },
+          "nguoiCapNhat": "Nông hộ Trần Văn Cường",
+          "thoiGian": "2026-05-19T12:16:41.793Z"
+        },
+        {
+          "step": 2,
+          "noiDung": {
+            "giaiDoan": "Bón Phân",
+            "tenPhanBon": "Phân hữu cơ vi sinh Komix",
+            "loaiPhanBon": "Hữu cơ vi sinh",
+            "lieuLuong": "600 kg/ha",
+            "ngayBon": "2025-11-20",
+            "nguoiThucHien": "Trần Văn Cường"
+          },
+          "nguoiCapNhat": "Nông hộ Trần Văn Cường",
+          "thoiGian": "2026-05-19T12:16:41.997Z"
+        },
+        {
+          "step": 3,
+          "noiDung": {
+            "giaiDoan": "Phun Thuốc BVTV",
+            "tenThuoc": "Thuốc trừ sâu sinh học Bt (Bacillus Thuringiensis)",
+            "hoatChat": "Bacillus thuringiensis spore",
+            "sauBenhHai": "Sâu đục quả quả xoài",
+            "lieuLuong": "1.5 lít/ha",
+            "ngayPhun": "2025-12-10",
+            "thoiGianCachLy": 7,
+            "ngayThuHoachAnToan": "2025-12-17",
+            "nguoiThucHien": "Lê Văn Bình"
+          },
+          "nguoiCapNhat": "HTX Xoài Mỹ Xương",
+          "thoiGian": "2026-05-19T12:16:42.004Z"
+        },
+        {
+          "step": 4,
+          "noiDung": {
+            "giaiDoan": "Thu Hoạch & Kiểm Định",
+            "ngayThuHoach": "2026-04-20",
+            "sanLuong": "12.5 tấn",
+            "nhaDongGoi": "Nhà đóng gói HTX Mỹ Xương",
+            "maKiemDinh": "MRL-2026-XC01",
+            "kiemDinhMRL": "Đạt chuẩn xuất khẩu EU (Dư lượng hoạt chất hóa học < 0.01 ppm)",
+            "chungNhanLab": "Trung tâm Kiểm nghiệm Eurofins Sắc Ký Hải Đăng"
+          },
+          "nguoiCapNhat": "Đại diện kiểm định GlobalGAP",
+          "thoiGian": "2026-05-19T12:16:42.035Z"
+        },
+        {
+          "step": 5,
+          "noiDung": {
+            "giaiDoan": "Vận Chuyển",
+            "donViLogistics": "Mekong Logistics Cold-Chain",
+            "phuongTien": "Container lạnh 64C-999.88",
+            "nhietDo": "7.8 °C",
+            "doAm": "82%",
+            "thoiGianKhoiHanh": "2026-04-22T09:00:00",
+            "thoiGianGiaoHang": "2026-05-15T14:30:00"
+          },
+          "nguoiCapNhat": "Mekong Logistics Co.",
+          "thoiGian": "2026-05-19T12:16:42.044Z"
+        },
+        {
+          "step": 6,
+          "noiDung": {
+            "giaiDoan": "Bán Lẻ",
+            "sieuThi": "Lidl Supermarket - Berlin",
+            "diaChi": "Karl-Liebknecht-Str. 13, 10178 Berlin, Germany",
+            "nhietDoKe": "11.5 °C",
+            "ngayTiepNhan": "2026-05-18",
+            "trangThai": "Đang bày bán trên kệ hàng (EVFTA Approved)"
+          },
+          "nguoiCapNhat": "Lidl Berlin Store Manager",
+          "thoiGian": "2026-05-19T12:16:42.053Z"
+        },
+        {
+          "step": 7,
+          "noiDung": {
+            "id": "1",
+            "tenThuoc": "Chế phẩm sinh học trừ sâu Bt",
+            "hoatChat": "Bacillus thuringiensis spore",
+            "sauBenhHai": "Sâu đục quả xoài",
+            "lieuLuong": "1.5 lít/ha",
+            "ngayPhun": "2026-05-19",
+            "thoiGianCachLy": "5",
+            "nguoiThucHien": "Le Lam Vien",
+            "giaiDoan": "Phun Thuốc BVTV"
+          },
+          "nguoiCapNhat": "Le Lam Vien",
+          "thoiGian": "2026-05-19T12:20:00.880Z"
+        }
+      ]
+    },
+    "2": {
+      "id": 2,
+      "ten": "Xoài Cát Chu Đồng Tháp",
+      "nguoiSoHuu": "Trần Văn Cường",
+      "tonTai": true,
+      "lichSu": [
+        {
+          "step": 1,
+          "noiDung": {
+            "giaiDoan": "Gieo Trồng",
+            "giong": "Xoài Cát Chu",
+            "nguonGoc": "Trung tâm Giống Cây Trồng Miền Nam",
+            "nhaCungCap": "Hợp tác xã Xoài Mỹ Xương",
+            "ngayGieo": "2026-05-19",
+            "dienTich": "3.5 ha",
+            "maChungNhan": "GlobalGAP #GG-2896407-VN"
+          },
+          "nguoiCapNhat": "Nông hộ Trần Văn Cường",
+          "thoiGian": "2026-05-19T16:31:59.618Z"
+        },
+        {
+          "step": 2,
+          "noiDung": {
+            "tenPhanBon": "Phân hữu cơ sinh học Komix",
+            "loaiPhanBon": "Broadcasting",
+            "lieuLuong": "600 kg/ha",
+            "ngayBon": "2026-05-19",
+            "nguoiThucHien": "Trần Văn Cường",
+            "giaiDoan": "Bón Phân"
+          },
+          "nguoiCapNhat": "Trần Văn Cường",
+          "thoiGian": "2026-05-19T16:35:05.033Z"
+        }
+      ]
+    }
+  }
+}
