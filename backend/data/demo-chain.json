@@ -222,6 +222,87 @@
       "timestamp": "2026-05-19T16:35:05.033Z",
       "nonce": 125,
       "hash": "000e26e1189f28e85035a33afdcf719c25bd9c0c1d3d38ce3b7aeb5adabe8e73"
+    },
+    {
+      "index": 10,
+      "prevHash": "000e26e1189f28e85035a33afdcf719c25bd9c0c1d3d38ce3b7aeb5adabe8e73",
+      "data": {
+        "type": "CREATE_PRODUCT",
+        "payload": {
+          "id": 2123,
+          "ten": "Xoài Cát Chu Đồng Tháp",
+          "thongTinDauTien": {
+            "giaiDoan": "Gieo Trồng",
+            "giong": "Xoài Cát Chu",
+            "nguonGoc": "Trung tâm Giống Cây Trồng Miền Nam",
+            "nhaCungCap": "Hợp tác xã Xoài Mỹ Xương",
+            "ngayGieo": "2026-05-25",
+            "dienTich": "3.5 ha",
+            "maChungNhan": "GlobalGAP #GG-9986279-VN"
+          },
+          "nguoiTao": "Nông hộ Trần Văn Cường"
+        }
+      },
+      "timestamp": "2026-05-25T01:21:37.548Z",
+      "nonce": 5804,
+      "hash": "000369c0327e885a37b2e9ab831fedcdedd1645e845ce2115cce40cc3e05fa02"
+    },
+    {
+      "index": 11,
+      "prevHash": "000369c0327e885a37b2e9ab831fedcdedd1645e845ce2115cce40cc3e05fa02",
+      "data": {
+        "type": "CREATE_PRODUCT",
+        "payload": {
+          "id": 3,
+          "ten": "Xoai Cat Chu Cao Lanh Premium",
+          "thongTinDauTien": {
+            "giaiDoan": "Gieo Trồng",
+            "giong": "Xoài Cát Chu",
+            "nguonGoc": "Hop tac xa Nong nghiep Cao Lanh",
+            "nhaCungCap": "Hợp tác xã Xoài Mỹ Xương",
+            "ngayGieo": "2026-05-25",
+            "dienTich": "4.2",
+            "maChungNhan": "GlobalGAP #GG-1252614-VN"
+          },
+          "nguoiTao": "Tran Van Cuong"
+        }
+      },
+      "timestamp": "2026-05-25T01:27:38.675Z",
+      "nonce": 2598,
+      "hash": "000abcef5dd85d739780ea32daffb1e3d13e84fdb6b329095d2b45cd7769a894"
+    },
+    {
+      "index": 12,
+      "prevHash": "000abcef5dd85d739780ea32daffb1e3d13e84fdb6b329095d2b45cd7769a894",
+      "data": {
+        "type": "PASS_CHECKPOINT",
+        "payload": {
+          "id": 3,
+          "tramId": 2,
+          "maHashDuLieu": "0xabc123",
+          "thongTinTrangThai": "Qua Tram 2 Tiền Giang thành công",
+          "nguoiCapNhat": "Trần Văn Cường"
+        }
+      },
+      "timestamp": "2026-05-25T01:49:24.800Z",
+      "nonce": 2122,
+      "hash": "0004ed00c325e7348c40d26c52a1f75c9c70805bbc0a929306a4587796aa071b"
+    },
+    {
+      "index": 13,
+      "prevHash": "0004ed00c325e7348c40d26c52a1f75c9c70805bbc0a929306a4587796aa071b",
+      "data": {
+        "type": "CHECKPOINT_FAILED_TAMPERED",
+        "payload": {
+          "id": 3,
+          "tenTram": "Trạm 2 Tiền Giang (Trung Chuyển)",
+          "maHashMoi": "0x83ea05e135670d1758d7eba8872a45aaff7ed7e322649c9440679ed2be18d3c4",
+          "nguoiCapNhat": "Lê Văn Hải (Trưởng Ca Trạm 2)"
+        }
+      },
+      "timestamp": "2026-05-25T02:24:59.789Z",
+      "nonce": 7623,
+      "hash": "000cd6b4f0f154c4945f3fa50298951404933161acb66d1d4412b6f89537379f"
     }
   ],
   "products": {
@@ -331,7 +412,8 @@
           "nguoiCapNhat": "Le Lam Vien",
           "thoiGian": "2026-05-19T12:20:00.880Z"
         }
-      ]
+      ],
+      "hanhTrinh": []
     },
     "2": {
       "id": 2,
@@ -365,6 +447,71 @@
           },
           "nguoiCapNhat": "Trần Văn Cường",
           "thoiGian": "2026-05-19T16:35:05.033Z"
+        }
+      ]
+    },
+    "3": {
+      "id": 3,
+      "ten": "Xoai Cat Chu Cao Lanh Premium",
+      "nguoiSoHuu": "Trần Văn Cường",
+      "tonTai": true,
+      "lichSu": [
+        {
+          "step": 1,
+          "noiDung": {
+            "giaiDoan": "Gieo Trồng",
+            "giong": "Xoài Cát Chu",
+            "nguonGoc": "Hop tac xa Nong nghiep Cao Lanh",
+            "nhaCungCap": "Hợp tác xã Xoài Mỹ Xương",
+            "ngayGieo": "2026-05-25",
+            "dienTich": "4.2",
+            "maChungNhan": "GlobalGAP #GG-1252614-VN"
+          },
+          "nguoiCapNhat": "Tran Van Cuong",
+          "thoiGian": "2026-05-25T01:27:38.675Z"
+        },
+        {
+          "step": 2,
+          "noiDung": "Qua tram 2: Qua Tram 2 Tiền Giang thành công",
+          "nguoiCapNhat": "Trần Văn Cường",
+          "thoiGian": "2026-05-25T01:49:24.800Z"
+        },
+        {
+          "step": 3,
+          "noiDung": "CANH BAO: Phat hien sai lech du lieu tai [Trạm 2 Tiền Giang (Trung Chuyển)]. Truoc: undefined vs Sau: 0x83ea05e135670d1758d7eba8872a45aaff7ed7e322649c9440679ed2be18d3c4",
+          "nguoiCapNhat": "Lê Văn Hải (Trưởng Ca Trạm 2)",
+          "thoiGian": "2026-05-25T02:24:59.789Z"
+        }
+      ],
+      "hanhTrinh": [
+        {
+          "tramId": 2,
+          "maHashDuLieu": "0xabc123",
+          "thongTinTrangThai": "Qua Tram 2 Tiền Giang thành công",
+          "thoiGian": "2026-05-25T01:49:24.799Z"
+        }
+      ],
+      "biCanThiep": true
+    },
+    "2123": {
+      "id": 2123,
+      "ten": "Xoài Cát Chu Đồng Tháp",
+      "nguoiSoHuu": "Nông hộ Trần Văn Cường",
+      "tonTai": true,
+      "lichSu": [
+        {
+          "step": 1,
+          "noiDung": {
+            "giaiDoan": "Gieo Trồng",
+            "giong": "Xoài Cát Chu",
+            "nguonGoc": "Trung tâm Giống Cây Trồng Miền Nam",
+            "nhaCungCap": "Hợp tác xã Xoài Mỹ Xương",
+            "ngayGieo": "2026-05-25",
+            "dienTich": "3.5 ha",
+            "maChungNhan": "GlobalGAP #GG-9986279-VN"
+          },
+          "nguoiCapNhat": "Nông hộ Trần Văn Cường",
+          "thoiGian": "2026-05-25T01:21:37.547Z"
         }
       ]
     }

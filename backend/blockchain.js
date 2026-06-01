@@ -136,10 +136,13 @@ class TraceabilityBlockchain {
     return {
       id: product.id,
       ten: product.ten,
+      tenSanPham: product.ten,
+      biCanThiep: product.biCanThiep || false,
+      tonTai: product.tonTai,
+      hanhTrinh: product.hanhTrinh || [],
       lichSu: this.formatHistory(product.lichSu),
       lichSuChiTiet: product.lichSu,
       nguoiSoHuu: product.nguoiSoHuu,
-      tonTai: product.tonTai,
       tongCapNhat: product.lichSu.length,
       blockHeight: this.chain.length - 1
     };
@@ -152,12 +155,19 @@ class TraceabilityBlockchain {
   createProduct({ id, ten, thongTinDauTien, nguoiTao = "Nong ho demo" }) {
     this.assertValidProductId(id);
 
-    if (!ten || !thongTinDauTien) {
-      throw new Error("Can nhap ten lo hang va thong tin dau tien.");
+    if (!ten) {
+      throw new Error("Can nhap ten lo hang.");
     }
 
     if (this.getProductRecord(id)) {
       throw new Error(`Lo hang ID ${id} da ton tai.`);
+    }
+
+    let hashDauTien = "";
+    if (typeof thongTinDauTien === "string" && (thongTinDauTien.startsWith("0x") || thongTinDauTien.length === 64 || thongTinDauTien.length === 66)) {
+      hashDauTien = thongTinDauTien;
+    } else {
+      hashDauTien = "0x" + hash(JSON.stringify(thongTinDauTien || {}));
     }
 
     const now = new Date().toISOString();
@@ -165,11 +175,20 @@ class TraceabilityBlockchain {
       id,
       ten,
       nguoiSoHuu: nguoiTao,
+      biCanThiep: false,
       tonTai: true,
+      hanhTrinh: [
+        {
+          tenTram: "Tram Goc (Farm)",
+          maHashXacThuc: hashDauTien,
+          thoiGian: now,
+          diaChiVi: "0x1234567890123456789012345678901234567890"
+        }
+      ],
       lichSu: [
         {
           step: 1,
-          noiDung: thongTinDauTien,
+          noiDung: `Khoi tao lo hang voi ma hash goc: ${hashDauTien}`,
           nguoiCapNhat: nguoiTao,
           thoiGian: now
         }
@@ -180,7 +199,7 @@ class TraceabilityBlockchain {
     const block = this.addBlock("CREATE_PRODUCT", {
       id,
       ten,
-      thongTinDauTien,
+      hashDauTien,
       nguoiTao
     });
 
@@ -221,6 +240,90 @@ class TraceabilityBlockchain {
       product: this.formatProduct(product),
       block
     };
+  }
+
+  quaTramTiepTheo({ id, tenTram = "Tram Tiep Theo", maHashMoi, nguoiCapNhat = "Staff Demo", diaChiVi = "0x1111111111111111111111111111111111111111" }) {
+    this.assertValidProductId(id);
+    const product = this.getProductRecord(id);
+    if (!product) {
+      throw new Error(`Khong tim thay lo hang ID ${id}.`);
+    }
+
+    if (product.biCanThiep) {
+      throw new Error("Lo hang da bi khoa/dong bang do phat hien trao hang!");
+    }
+
+    if (!product.hanhTrinh) {
+      product.hanhTrinh = [];
+    }
+
+    // 1. Kiểm tra đối chiếu mã băm chống tráo hàng
+    const previousTramIndex = product.hanhTrinh.length - 1;
+    const previousHash = product.hanhTrinh[previousTramIndex].maHashXacThuc;
+
+    if (previousHash !== maHashMoi) {
+      product.biCanThiep = true;
+      
+      product.lichSu.push({
+        step: product.lichSu.length + 1,
+        noiDung: `CANH BAO: Phat hien sai lech du lieu tai [${tenTram}]. Truoc: ${previousHash} vs Sau: ${maHashMoi}`,
+        nguoiCapNhat,
+        thoiGian: new Date().toISOString()
+      });
+
+      this.addBlock("CHECKPOINT_FAILED_TAMPERED", {
+        id,
+        tenTram,
+        previousHash,
+        maHashMoi,
+        nguoiCapNhat
+      });
+
+      this.persist();
+
+      throw new Error("Canh bao: Phat hien trao hang! Du lieu ma hash khong trung khop.");
+    }
+
+    // 2. Nếu khớp, ghi nhận trạm an toàn
+    const checkpoint = {
+      tenTram,
+      maHashXacThuc: maHashMoi,
+      thoiGian: new Date().toISOString(),
+      diaChiVi
+    };
+
+    product.hanhTrinh.push(checkpoint);
+
+    product.lichSu.push({
+      step: product.lichSu.length + 1,
+      noiDung: `Qua tram: ${tenTram} (Xac thuc trung khop)`,
+      nguoiCapNhat,
+      thoiGian: new Date().toISOString()
+    });
+    product.nguoiSoHuu = nguoiCapNhat;
+
+    const block = this.addBlock("PASS_CHECKPOINT", {
+      id,
+      tenTram,
+      maHashMoi,
+      nguoiCapNhat
+    });
+
+    this.persist();
+
+    return {
+      product: this.formatProduct(product),
+      block
+    };
+  }
+
+  getHanhTrinh(id) {
+    this.assertValidProductId(id);
+    const product = this.getProductRecord(id);
+    if (!product) {
+      throw new Error(`Khong tim thay lo hang ID ${id}.`);
+    }
+    return product.hanhTrinh || [];
   }
 
   getProduct(id) {

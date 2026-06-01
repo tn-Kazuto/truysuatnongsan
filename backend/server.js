@@ -44,6 +44,8 @@ async function handleRequest(request, response) {
   const url = new URL(request.url, `http://${request.headers.host}`);
   const pathname = url.pathname;
 
+  console.log(`${request.method} ${pathname}`);
+
   if (request.method === "OPTIONS") {
     sendJson(response, 200, { status: "ok" });
     return;
@@ -149,6 +151,40 @@ async function handleRequest(request, response) {
         source: "local-js-blockchain",
         data: result.product,
         minedBlock: result.block
+      });
+      return;
+    }
+
+    const checkpointMatch = pathname.match(/^\/api\/products\/(\d+)\/checkpoints$/);
+    if (request.method === "POST" && checkpointMatch) {
+      const productId = Number(checkpointMatch[1]);
+      const body = await parseBody(request);
+      const result = blockchain.quaTramTiepTheo({
+        id: productId,
+        tenTram: body.tenTram || `Tram ${body.tramId || ""}`,
+        maHashMoi: body.maHashMoi || body.maHashDuLieu,
+        nguoiCapNhat: body.nguoiCapNhat || body.thongTinTrangThai || "Staff",
+        diaChiVi: body.diaChiVi || "0x1111111111111111111111111111111111111111"
+      });
+
+      sendJson(response, 200, {
+        status: "success",
+        message: "Da ghi nhan qua tram kiem soat tren local blockchain.",
+        productId,
+        source: "local-js-blockchain",
+        data: result.product,
+        minedBlock: result.block
+      });
+      return;
+    }
+
+    if (request.method === "GET" && checkpointMatch) {
+      const productId = Number(checkpointMatch[1]);
+      sendJson(response, 200, {
+        status: "success",
+        productId,
+        source: "local-js-blockchain",
+        checkpoints: blockchain.getHanhTrinh(productId)
       });
       return;
     }

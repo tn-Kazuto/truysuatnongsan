@@ -23,10 +23,12 @@ const translations = {
     subtitle: "Giải pháp xuất khẩu nông sản đáp ứng tiêu chuẩn EVFTA & CPTPP",
     consumerRole: "Người tiêu dùng",
     farmerRole: "Nông dân / HTX",
-    auditorRole: "Kiểm toán viên / Hải quan",
+    auditorRole: "Hải Quan / Nhận Mã Hash",
+    stationRole: "Trạm Kiểm Soát Nội Bộ",
     consumerDesc: "Tra cứu hộ chiếu sản phẩm số (Digital Product Passport)",
     farmerDesc: "Ghi nhật ký canh tác số & chuẩn bị hồ sơ GlobalGAP",
-    auditorDesc: "Kiểm tra tính toàn vẹn dữ liệu chuỗi khối, chống gian lận",
+    auditorDesc: "Nhận và đối chiếu mã hash gửi về trực tiếp từ các trạm trung chuyển",
+    stationDesc: "Nhân viên trạm cân lại hàng, đối chiếu băm mã bảo mật, phát hiện tráo hàng",
     digitalPassport: "Hộ Chiếu Sản Phẩm Số",
     digitalPassportSub: "Đáp ứng quy định xuất khẩu của Liên minh Châu Âu (EU DPP)",
     searchPlaceholder: "Nhập mã lô hàng (VD: 1)...",
@@ -53,10 +55,12 @@ const translations = {
     subtitle: "Traceability solutions for EU EVFTA & CPTPP export compliance",
     consumerRole: "Consumer",
     farmerRole: "Farmer / Cooperative",
-    auditorRole: "Auditor / Customs Officer",
+    auditorRole: "Customs / Hash Monitor",
+    stationRole: "Transit Checkpoint Panel",
     consumerDesc: "Search & view Digital Product Passport (DPP)",
     farmerDesc: "Log field activities & prepare GlobalGAP documents",
-    auditorDesc: "Audit blockchain data integrity and prevent fraud",
+    auditorDesc: "Receive and verify cryptographic hashes sent from transit stations",
+    stationDesc: "Checkpoint staff weigh mangoes and verify preceding cryptographic hash",
     digitalPassport: "Digital Product Passport",
     digitalPassportSub: "Compliant with EU Digital Product Passport requirements",
     searchPlaceholder: "Enter batch ID (e.g. 1)...",
@@ -245,6 +249,18 @@ export default function App() {
   // Simulated scan QR overlay
   const [isScanningQR, setIsScanningQR] = useState(false);
 
+  // Checkpoint anti-fraud states
+  const [globalAlerts, setGlobalAlerts] = useState([]);
+  const [useSimulatedWallet, setUseSimulatedWallet] = useState(false);
+  const [checkpointForm, setCheckpointForm] = useState({
+    batchId: "1",
+    tenTram: "Trạm 2 Tiền Giang (Trung Chuyển)",
+    khoiLuongThucTe: "1000",
+    nhietDoKiemTra: "8.5",
+    nguoiKiemTra: "Lê Văn Hải (Trưởng Ca Trạm 2)",
+    overrideHash: ""
+  });
+
   // New Batch Registration form (Genesis Block)
   const [batchForm, setBatchForm] = useState({
     id: "2",
@@ -312,6 +328,30 @@ export default function App() {
     refreshBatches();
     // Auto lookup batch 1
     handleLookupWithId("1");
+
+    // Real-time Event Listener Polling (for local blockchain events simulation)
+    const interval = setInterval(async () => {
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/chain`);
+        const payload = await response.json();
+        if (payload.status === "success" && payload.chain) {
+          const failedBlocks = payload.chain.filter(b => b.data && b.data.type === "CHECKPOINT_FAILED_TAMPERED");
+          if (failedBlocks.length > 0) {
+            const latestAlert = failedBlocks[failedBlocks.length - 1];
+            setGlobalAlerts(curr => {
+              if (!curr.some(a => a.hash === latestAlert.hash)) {
+                return [...curr, latestAlert];
+              }
+              return curr;
+            });
+          }
+        }
+      } catch (e) {
+        // Fail silently
+      }
+    }, 4000);
+
+    return () => clearInterval(interval);
   }, []);
 
   const loadConfig = async () => {
@@ -622,12 +662,79 @@ export default function App() {
     }
   };
 
+  const handleCheckpointSubmit = async (e) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setStatus("Đang đối chiếu mã băm an toàn & ký gửi lên Blockchain...");
+
+    try {
+      // 1. Compute Hash value based on weight & ID
+      const payloadToHash = `ID:${checkpointForm.batchId}-Weight:${checkpointForm.khoiLuongThucTe}`;
+      const generatedHash = "0x" + await sha256(payloadToHash);
+
+      if (activeNetwork === "polygon" && CONTRACT_ADDRESS !== "0x0000000000000000000000000000000000000000") {
+        const provider = new BrowserProvider(window.ethereum);
+        const signer = await provider.getSigner();
+        const contract = new Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
+
+        const tx = await contract.quaTramTiepTheo(
+          Number(checkpointForm.batchId),
+          checkpointForm.tenTram,
+          generatedHash
+        );
+        await tx.wait();
+        alert("Xác thực hành trình thành công! Đã ghi nhận trạm an toàn lên Polygon.");
+      } else {
+        // Send to local JS blockchain REST API
+        const response = await fetch(`${API_BASE_URL}/api/products/${checkpointForm.batchId}/checkpoints`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            tenTram: checkpointForm.tenTram,
+            maHashMoi: generatedHash,
+            nguoiCapNhat: checkpointForm.nguoiKiemTra,
+            diaChiVi: walletAddress || "0x70997970c51812dc3a010c7d01b50e0d17dc79c8"
+          })
+        });
+
+        const payload = await response.json();
+        if (!response.ok) {
+          throw new Error(payload.error || "Lỗi ghi nhận trạm kiểm soát.");
+        }
+
+        alert(`Xác thực hành trình thành công! Trạm [${checkpointForm.tenTram}] đã được ghi nhận trên Blockchain.`);
+      }
+
+      await refreshBatches();
+      handleLookupWithId(checkpointForm.batchId);
+    } catch (error) {
+      alert("CẢNH BÁO AN NINH: " + error.message);
+      // Trigger event alert
+      setGlobalAlerts(curr => [
+        ...curr,
+        {
+          timestamp: new Date().toISOString(),
+          data: {
+            payload: {
+              id: checkpointForm.batchId,
+              tenTram: checkpointForm.tenTram,
+              nguoiCapNhat: checkpointForm.nguoiKiemTra
+            }
+          },
+          hash: "alert_" + Date.now()
+        }
+      ]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const verifyBlockchain = async () => {
     try {
       setIsVerifying(true);
       setVerificationLog([]);
       setChainVerificationStatus(null);
-      setStatus("Đang kết nối để kiểm toán toàn bộ sổ cái chuỗi khối...");
+      setStatus("Đang kết nối nhận dữ liệu mã băm từ các trạm...");
 
       const response = await fetch(`${API_BASE_URL}/api/chain`);
       const payload = await response.json();
@@ -639,44 +746,40 @@ export default function App() {
       for (let i = 0; i < blocks.length; i++) {
         const block = blocks[i];
         
-        // Reconstruct string to hash: index + prevHash + stringify(data) + timestamp + nonce
-        const blockString = `${block.index}${block.prevHash}${JSON.stringify(block.data)}${block.timestamp}${block.nonce}`;
-        const computedHash = await sha256(blockString);
+        // Chỉ trích xuất các sự kiện qua trạm
+        if (block.data && (block.data.type === "PASS_CHECKPOINT" || block.data.type === "CHECKPOINT_FAILED_TAMPERED")) {
+          const payloadData = block.data.payload || {};
+          const isTampered = block.data.type === "CHECKPOINT_FAILED_TAMPERED";
+          
+          if (isTampered) {
+            isChainSecure = false;
+          }
 
-        // Verification checks
-        const isHashValid = computedHash === block.hash;
-        let isPrevHashMatch = true;
-
-        if (i > 0) {
-          isPrevHashMatch = block.prevHash === blocks[i - 1].hash;
+          logs.push({
+            index: block.index,
+            type: block.data.type,
+            timestamp: block.timestamp,
+            hash: block.hash,
+            prevHash: block.prevHash,
+            batchId: payloadData.id,
+            tenTram: payloadData.tenTram || "Trạm Kiểm Soát",
+            maHashMoi: payloadData.maHashMoi || "N/A",
+            previousHash: payloadData.previousHash || block.prevHash,
+            nguoiCapNhat: payloadData.nguoiCapNhat || "Nhân viên trạm",
+            status: !isTampered
+          });
         }
-
-        const isBlockSecure = isHashValid && isPrevHashMatch;
-        if (!isBlockSecure) {
-          isChainSecure = false;
-        }
-
-        logs.push({
-          index: block.index,
-          type: block.data.type || "Genesis (Khởi tạo chuỗi)",
-          data: block.data.payload || block.data,
-          timestamp: block.timestamp,
-          storedHash: block.hash,
-          computedHash: computedHash,
-          prevHash: block.prevHash,
-          nonce: block.nonce,
-          isHashValid,
-          isPrevHashMatch,
-          status: isBlockSecure
-        });
       }
+
+      // Đảo ngược để trạm mới nhất xếp lên đầu
+      logs.reverse();
 
       setVerificationLog(logs);
       setChainVerificationStatus(isChainSecure ? "secure" : "tampered");
-      setStatus(isChainSecure ? "Xác minh hoàn tất: Chuỗi khối an toàn 100%!" : "Cảnh báo: Phát hiện sai lệch mã băm!");
+      setStatus(isChainSecure ? "Hệ thống giám sát mã hash: Hoạt động bình thường." : "CẢNH BÁO: Phát hiện sai lệch mã hash tại trạm!");
     } catch (error) {
       setChainVerificationStatus("error");
-      setStatus("Lỗi kiểm toán: " + error.message);
+      setStatus("Lỗi tải mã hash: " + error.message);
     } finally {
       setIsVerifying(false);
     }
@@ -834,19 +937,19 @@ export default function App() {
               </p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
               
               {/* Consumer card */}
               <button
                 onClick={() => setCurrentRole("consumer")}
-                className="bg-white rounded-3xl p-8 shadow-md hover:shadow-xl transition-all transform hover:-translate-y-1.5 border-2 border-transparent hover:border-blue-500 text-center flex flex-col items-center justify-between"
+                className="bg-white rounded-3xl p-6 shadow-md hover:shadow-xl transition-all transform hover:-translate-y-1.5 border-2 border-transparent hover:border-blue-500 text-center flex flex-col items-center justify-between"
               >
-                <div className="bg-blue-50 p-6 rounded-2xl mb-6">
-                  <Globe className="w-14 h-14 text-blue-600" />
+                <div className="bg-blue-50 p-4 rounded-2xl mb-4">
+                  <Globe className="w-12 h-12 text-blue-600" />
                 </div>
-                <h3 className="text-2xl font-bold text-gray-900 mb-2">{t.consumerRole}</h3>
-                <p className="text-sm text-gray-600 mb-6 flex-grow">{t.consumerDesc}</p>
-                <span className="text-xs font-bold text-blue-600 uppercase tracking-wider bg-blue-50 px-3 py-1 rounded-full">
+                <h3 className="text-xl font-bold text-gray-900 mb-2">{t.consumerRole}</h3>
+                <p className="text-xs text-gray-650 mb-4 flex-grow">{t.consumerDesc}</p>
+                <span className="text-[10px] font-bold text-blue-600 uppercase tracking-wider bg-blue-50 px-2.5 py-1 rounded-full">
                   EVFTA / CPTPP TRACE
                 </span>
               </button>
@@ -857,15 +960,33 @@ export default function App() {
                   setCurrentRole("farmer");
                   refreshBatches();
                 }}
-                className="bg-white rounded-3xl p-8 shadow-md hover:shadow-xl transition-all transform hover:-translate-y-1.5 border-2 border-transparent hover:border-emerald-500 text-center flex flex-col items-center justify-between"
+                className="bg-white rounded-3xl p-6 shadow-md hover:shadow-xl transition-all transform hover:-translate-y-1.5 border-2 border-transparent hover:border-emerald-500 text-center flex flex-col items-center justify-between"
               >
-                <div className="bg-emerald-50 p-6 rounded-2xl mb-6">
-                  <BookOpen className="w-14 h-14 text-emerald-600" />
+                <div className="bg-emerald-50 p-4 rounded-2xl mb-4">
+                  <BookOpen className="w-12 h-12 text-emerald-600" />
                 </div>
-                <h3 className="text-2xl font-bold text-gray-900 mb-2">{t.farmerRole}</h3>
-                <p className="text-sm text-gray-600 mb-6 flex-grow">{t.farmerDesc}</p>
-                <span className="text-xs font-bold text-emerald-600 uppercase tracking-wider bg-emerald-50 px-3 py-1 rounded-full">
+                <h3 className="text-xl font-bold text-gray-900 mb-2">{t.farmerRole}</h3>
+                <p className="text-xs text-gray-650 mb-4 flex-grow">{t.farmerDesc}</p>
+                <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider bg-emerald-50 px-2.5 py-1 rounded-full">
                   GLOBALGAP BOOK
+                </span>
+              </button>
+
+              {/* Station Checkpoint card */}
+              <button
+                onClick={() => {
+                  setCurrentRole("station");
+                  refreshBatches();
+                }}
+                className="bg-white rounded-3xl p-6 shadow-md hover:shadow-xl transition-all transform hover:-translate-y-1.5 border-2 border-transparent hover:border-orange-500 text-center flex flex-col items-center justify-between"
+              >
+                <div className="bg-orange-50 p-4 rounded-2xl mb-4">
+                  <Truck className="w-12 h-12 text-orange-600" />
+                </div>
+                <h3 className="text-xl font-bold text-gray-900 mb-2">{t.stationRole}</h3>
+                <p className="text-xs text-gray-650 mb-4 flex-grow">{t.stationDesc}</p>
+                <span className="text-[10px] font-bold text-orange-600 uppercase tracking-wider bg-orange-50 px-2.5 py-1 rounded-full">
+                  ANTI-FRAUD TRANSIT
                 </span>
               </button>
 
@@ -875,14 +996,14 @@ export default function App() {
                   setCurrentRole("auditor");
                   verifyBlockchain();
                 }}
-                className="bg-white rounded-3xl p-8 shadow-md hover:shadow-xl transition-all transform hover:-translate-y-1.5 border-2 border-transparent hover:border-purple-500 text-center flex flex-col items-center justify-between"
+                className="bg-white rounded-3xl p-6 shadow-md hover:shadow-xl transition-all transform hover:-translate-y-1.5 border-2 border-transparent hover:border-purple-500 text-center flex flex-col items-center justify-between"
               >
-                <div className="bg-purple-50 p-6 rounded-2xl mb-6">
-                  <Shield className="w-14 h-14 text-purple-600" />
+                <div className="bg-purple-50 p-4 rounded-2xl mb-4">
+                  <Shield className="w-12 h-12 text-purple-600" />
                 </div>
-                <h3 className="text-2xl font-bold text-gray-900 mb-2">{t.auditorRole}</h3>
-                <p className="text-sm text-gray-600 mb-6 flex-grow">{t.auditorDesc}</p>
-                <span className="text-xs font-bold text-purple-600 uppercase tracking-wider bg-purple-50 px-3 py-1 rounded-full">
+                <h3 className="text-xl font-bold text-gray-900 mb-2">{t.auditorRole}</h3>
+                <p className="text-xs text-gray-650 mb-4 flex-grow">{t.auditorDesc}</p>
+                <span className="text-[10px] font-bold text-purple-600 uppercase tracking-wider bg-purple-50 px-2.5 py-1 rounded-full">
                   ANTI-FRAUD AUDIT
                 </span>
               </button>
@@ -943,6 +1064,20 @@ export default function App() {
 
             {!isLoading && selectedProduct && (
               <div className="space-y-8">
+                
+                {selectedProduct.biCanThiep && (
+                  <div className="bg-gradient-to-r from-red-600 via-rose-600 to-red-750 rounded-3xl shadow-lg p-6 text-white relative overflow-hidden animate-pulse border-4 border-red-400">
+                    <div className="flex items-center gap-4">
+                      <AlertTriangle className="w-14 h-14 text-white shrink-0" />
+                      <div>
+                        <h2 className="text-xl font-extrabold">🚨 CẢNH BÁO CAN THIỆP: LÔ HÀNG ĐÃ BỊ PHONG TỎA</h2>
+                        <p className="text-xs text-red-100 mt-1">
+                          Hệ thống phát hiện sai số băm tại Trạm Trung Chuyển (nghi vấn tráo đổi hoặc thất thoát hàng). Toàn bộ hành trình chuỗi cung ứng của lô hàng này đã bị ĐÓNG BĂNG để phục vụ công tác thanh tra.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
                 
                 {/* 1. Header Banner Card */}
                 <div className="bg-gradient-to-r from-emerald-600 via-green-600 to-blue-600 rounded-3xl shadow-lg p-8 text-white relative overflow-hidden">
@@ -1244,6 +1379,141 @@ export default function App() {
                   </div>
                 )}
 
+                {/* 5.5. Supply Chain Route Verification Timeline & Hashing history */}
+                <div className="bg-white rounded-3xl shadow-md border p-8">
+                  <div className="flex items-center justify-between mb-6">
+                    <div className="flex items-center gap-3">
+                      <Truck className="w-6 h-6 text-orange-600 animate-pulse" />
+                      <h3 className="text-2xl font-extrabold text-gray-900">Bản Đồ Hành Trình & Lịch Sử Đối Chiếu Mật Mã</h3>
+                    </div>
+                    <span className={`text-xs font-bold px-3 py-1 rounded-full uppercase border ${
+                      selectedProduct.biCanThiep
+                        ? "bg-red-50 text-red-650 border-red-150 animate-bounce"
+                        : "bg-emerald-50 text-emerald-800 border-emerald-150"
+                    }`}>
+                      {selectedProduct.biCanThiep ? "🚨 PHÁT HIỆN CAN THIỆP" : "🟢 HÀNH TRÌNH KHÔNG BỊ CAN THIỆP"}
+                    </span>
+                  </div>
+
+                  <p className="text-sm text-gray-500 mb-6">
+                    Hệ thống tự động liên kết các trạm trung chuyển qua cơ chế Hashing. Trạm kế tiếp băm khối lượng cân thực tế đối chiếu trùng khớp mã băm trạm trước.
+                  </p>
+
+                  {/* Horizontal visual map */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+                    <div className="bg-emerald-50 rounded-2xl p-4 border border-emerald-150 relative overflow-hidden">
+                      <div className="flex justify-between items-start">
+                        <span className="text-[10px] uppercase font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded">Trạm 1: Nông Trại</span>
+                        <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+                      </div>
+                      <p className="font-extrabold text-sm text-gray-850 mt-2">Mỹ Xương, Đồng Tháp</p>
+                      <p className="text-[11px] text-gray-500 mt-1">Đã cân: 1000 kg (Gốc)</p>
+                      <p className="text-[10px] font-mono text-gray-400 mt-2 truncate">Hash: {selectedProduct.hanhTrinh && selectedProduct.hanhTrinh[0] ? selectedProduct.hanhTrinh[0].maHashXacThuc : "0x1234..."}</p>
+                    </div>
+
+                    <div className={`${
+                      selectedProduct.hanhTrinh && selectedProduct.hanhTrinh.length > 1
+                        ? "bg-emerald-50 border-emerald-150"
+                        : "bg-gray-50 border-gray-150"
+                    } rounded-2xl p-4 border relative overflow-hidden`}>
+                      <div className="flex justify-between items-start">
+                        <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded ${
+                          selectedProduct.hanhTrinh && selectedProduct.hanhTrinh.length > 1
+                            ? "text-emerald-700 bg-emerald-100"
+                            : "text-gray-500 bg-gray-200"
+                        }`}>Trạm 2: Trung Chuyển</span>
+                        {selectedProduct.hanhTrinh && selectedProduct.hanhTrinh.length > 1 ? (
+                          <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+                        ) : (
+                          <div className="w-5 h-5 rounded-full border-2 border-gray-300"></div>
+                        )}
+                      </div>
+                      <p className="font-extrabold text-sm text-gray-850 mt-2">Trạm 2 Tiền Giang</p>
+                      <p className="text-[11px] text-gray-500 mt-1">
+                        {selectedProduct.hanhTrinh && selectedProduct.hanhTrinh.length > 1
+                          ? `Đã cân: 1000 kg (Khớp)`
+                          : "Đang vận chuyển..."}
+                      </p>
+                      {selectedProduct.hanhTrinh && selectedProduct.hanhTrinh.length > 1 && (
+                        <p className="text-[10px] font-mono text-gray-400 mt-2 truncate">Hash: {selectedProduct.hanhTrinh[1].maHashXacThuc}</p>
+                      )}
+                    </div>
+
+                    <div className={`${
+                      selectedProduct.hanhTrinh && selectedProduct.hanhTrinh.length > 2
+                        ? selectedProduct.biCanThiep
+                          ? "bg-red-50 border-red-200"
+                          : "bg-emerald-50 border-emerald-150"
+                        : "bg-gray-50 border-gray-150"
+                    } rounded-2xl p-4 border relative overflow-hidden`}>
+                      <div className="flex justify-between items-start">
+                        <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded ${
+                          selectedProduct.hanhTrinh && selectedProduct.hanhTrinh.length > 2
+                            ? selectedProduct.biCanThiep
+                              ? "text-red-700 bg-red-100"
+                              : "text-emerald-700 bg-emerald-100"
+                            : "text-gray-500 bg-gray-200"
+                        }`}>Trạm 3: Hải Quan / Cảng</span>
+                        {selectedProduct.hanhTrinh && selectedProduct.hanhTrinh.length > 2 ? (
+                          selectedProduct.biCanThiep ? (
+                            <AlertTriangle className="w-5 h-5 text-red-650" />
+                          ) : (
+                            <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+                          )
+                        ) : (
+                          <div className="w-5 h-5 rounded-full border-2 border-gray-300"></div>
+                        )}
+                      </div>
+                      <p className="font-extrabold text-sm text-gray-850 mt-2">Cảng Cát Lái (Hải Quan)</p>
+                      <p className="text-[11px] text-gray-550 mt-1">
+                        {selectedProduct.hanhTrinh && selectedProduct.hanhTrinh.length > 2
+                          ? selectedProduct.biCanThiep
+                            ? "🔴 Báo động: Đóng băng đơn hàng"
+                            : "Đã cân: 1000 kg (Thông quan)"
+                          : "Chờ kiểm định hải quan..."}
+                      </p>
+                      {selectedProduct.hanhTrinh && selectedProduct.hanhTrinh.length > 2 && (
+                        <p className="text-[10px] font-mono text-gray-400 mt-2 truncate">Hash: {selectedProduct.hanhTrinh[2].maHashXacThuc}</p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Vertical cryptographic audit timeline */}
+                  <h4 className="font-bold text-gray-800 text-sm mb-4">Sổ cái lịch sử đối chiếu mã băm (Cryptographic Audit Ledger)</h4>
+                  <div className="border border-gray-200 rounded-2xl overflow-hidden text-xs">
+                    <div className="bg-gray-100 grid grid-cols-12 p-3 font-bold text-gray-700 uppercase tracking-wider border-b">
+                      <div className="col-span-3">Tên Trạm / Nút</div>
+                      <div className="col-span-3">Mã băm an toàn (Secure Hash)</div>
+                      <div className="col-span-2">Nhân viên / Ví</div>
+                      <div className="col-span-2">Thời gian kiểm duyệt</div>
+                      <div className="col-span-2 text-right">Trạng thái</div>
+                    </div>
+                    {selectedProduct.hanhTrinh && selectedProduct.hanhTrinh.length > 0 ? (
+                      selectedProduct.hanhTrinh.map((tr, index) => (
+                        <div key={index} className={`grid grid-cols-12 p-3 border-b hover:bg-gray-50 font-medium ${
+                          index === selectedProduct.hanhTrinh.length - 1 && selectedProduct.biCanThiep ? "bg-red-50/50" : ""
+                        }`}>
+                          <div className="col-span-3 font-bold text-gray-800">{tr.tenTram}</div>
+                          <div className="col-span-3 font-mono text-gray-550 truncate pr-4">{tr.maHashXacThuc}</div>
+                          <div className="col-span-2 font-mono text-gray-500 truncate pr-4">{tr.diaChiVi}</div>
+                          <div className="col-span-2 text-gray-500">{new Date(Number(tr.thoiGian) * 1000).toLocaleString("vi-VN")}</div>
+                          <div className="col-span-2 text-right">
+                            {index === 0 ? (
+                              <span className="text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full font-bold">🟢 Genesis</span>
+                            ) : index === selectedProduct.hanhTrinh.length - 1 && selectedProduct.biCanThiep ? (
+                              <span className="text-red-750 bg-red-100 px-2 py-0.5 rounded-full font-bold animate-pulse">🚨 Mismatch / Freezed</span>
+                            ) : (
+                              <span className="text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-full font-bold">🟢 Match Verified</span>
+                            )}
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="p-4 text-center text-gray-500 italic">Chưa ghi nhận trạm trung chuyển.</div>
+                    )}
+                  </div>
+                </div>
+
                 {/* 6. Cold-chain Logistics */}
                 {selectedProduct.logistics && (
                   <div className="bg-white rounded-3xl shadow-md border p-8">
@@ -1344,6 +1614,234 @@ export default function App() {
               </div>
             )}
 
+          </div>
+        )}
+
+        {/* ROLE: STATION CHECKPOINT (INTERNAL ANTI-FRAUD VERIFICATION) */}
+        {currentRole === "station" && (
+          <div className="space-y-8 role-enter">
+            
+            {/* Dashboard Header Banner */}
+            <div className="bg-gradient-to-r from-orange-600 via-orange-500 to-amber-500 rounded-3xl shadow-lg p-8 text-white">
+              <div className="flex items-center gap-4 mb-4">
+                <Truck className="w-10 h-10 animate-bounce" />
+                <div>
+                  <h2 className="text-3xl font-extrabold">Trạm Kiểm Soát Lộ Trình Lạnh & Chống Tráo Hàng</h2>
+                  <p className="text-orange-100 text-sm">Hệ thống bảo mật đối chiếu mã băm cryptographic giữa các trạm trung chuyển</p>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
+                <div className="bg-white/10 backdrop-blur rounded-2xl p-4 border border-white/10">
+                  <div className="text-xl font-bold font-mono">Real-time Hashing</div>
+                  <div className="text-xs text-orange-100 mt-1">Cơ chế tự động băm dữ liệu chống can thiệp</div>
+                </div>
+                <div className="bg-white/10 backdrop-blur rounded-2xl p-4 border border-white/10">
+                  <div className="text-xl font-bold font-mono">Chain Verification</div>
+                  <div className="text-xs text-orange-100 mt-1">Đối chiếu tuyệt đối với mã hash của Trạm liền trước</div>
+                </div>
+                <div className="bg-white/10 backdrop-blur rounded-2xl p-4 border border-white/10">
+                  <div className="text-xl font-bold font-mono">Auto-Freeze Protocol</div>
+                  <div className="text-xs text-orange-100 mt-1">Đóng băng giao dịch ngay khi phát hiện sai số</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Wallet Authentication Controls */}
+            <div className="bg-white rounded-3xl p-8 shadow-md border">
+              <h3 className="text-xl font-extrabold text-gray-800 mb-4 flex items-center gap-2">
+                <Shield className="w-6 h-6 text-orange-600" />
+                Xác Thực Danh Tính Nhân Viên Trạm Kiểm Soát
+              </h3>
+              
+              <div className="flex flex-col md:flex-row gap-6 items-start justify-between">
+                <div className="space-y-2 max-w-2xl">
+                  <p className="text-sm text-gray-600">
+                    Để thực hiện ghi nhận thông tin và ký mật mã lên Blockchain, hệ thống yêu cầu kết nối địa chỉ ví MetaMask của nhân viên được ủy quyền tại Trạm.
+                  </p>
+                  <div className="flex flex-wrap gap-2 text-xs font-mono text-gray-500 pt-2">
+                    <span className="font-bold text-gray-700">Ví trạm mẫu:</span>
+                    <span className="bg-gray-150 px-2 py-0.5 rounded">0x70997970c51812dc3a010c7d01b50e0d17dc79c8 (Trạm 1)</span>
+                    <span className="bg-gray-150 px-2 py-0.5 rounded">0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc (Trạm 2)</span>
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-3 w-full md:w-auto">
+                  {walletAddress ? (
+                    <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 text-emerald-800 w-full text-center">
+                      <p className="text-xs font-bold uppercase">✓ Đã xác thực bằng ví</p>
+                      <p className="text-sm font-mono font-bold mt-1">{walletAddress.substring(0, 10)}...{walletAddress.substring(34)}</p>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={connectWallet}
+                      className="px-6 py-3.5 bg-orange-600 hover:bg-orange-700 text-white font-bold rounded-2xl shadow transition-all flex items-center justify-center gap-2"
+                    >
+                      <Cpu className="w-5 h-5" />
+                      Kết nối ví MetaMask
+                    </button>
+                  )}
+
+                  <label className="flex items-center gap-2 cursor-pointer bg-gray-50 px-4 py-2 rounded-xl border hover:bg-gray-100 transition-colors">
+                    <input
+                      type="checkbox"
+                      checked={useSimulatedWallet}
+                      onChange={(e) => {
+                        setUseSimulatedWallet(e.target.checked);
+                        if (e.target.checked && !walletAddress) {
+                          setWalletAddress("0x70997970c51812dc3a010c7d01b50e0d17dc79c8");
+                        }
+                      }}
+                      className="rounded text-orange-600 focus:ring-orange-500 w-4 h-4"
+                    />
+                    <span className="text-xs font-bold text-gray-700">Giả lập Ví trạm (Bypass MetaMask)</span>
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            {/* Checkpoint Registry Form & Hashing Sandbox */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              
+              {/* Form Input Card */}
+              <div className="bg-white rounded-3xl p-8 shadow-md border lg:col-span-2 space-y-6">
+                <div className="border-b pb-4">
+                  <h3 className="text-xl font-extrabold text-gray-800">1. Nhập Dữ Liệu Kiểm Tra Thực Tế</h3>
+                  <p className="text-xs text-gray-500 mt-1">Cân đo khối lượng thực phẩm thực tế lúc cập bến trạm kiểm soát</p>
+                </div>
+
+                <form onSubmit={handleCheckpointSubmit} className="space-y-4">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Chọn Lô Hàng Cần Check-in</label>
+                    <select
+                      value={checkpointForm.batchId}
+                      onChange={(e) => {
+                        setCheckpointForm(prev => ({ ...prev, batchId: e.target.value }));
+                        handleLookupWithId(e.target.value);
+                      }}
+                      className="w-full p-4 border border-gray-300 rounded-xl focus:border-orange-500 focus:outline-none transition-all text-sm font-semibold"
+                    >
+                      <option value="1">Lô hàng #1: Xoài Cát Chu Cao Lãnh Premium</option>
+                      <option value="2">Lô hàng #2: Xoài Cát Chu Đồng Tháp</option>
+                      <option value="3">Lô hàng #3: Xoài Cát Chu GlobalGAP Export</option>
+                    </select>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Tên Trạm Đang Kiểm Tra</label>
+                      <input
+                        type="text"
+                        value={checkpointForm.tenTram}
+                        onChange={(e) => setCheckpointForm(prev => ({ ...prev, tenTram: e.target.value }))}
+                        className="w-full p-4 border border-gray-300 rounded-xl focus:border-orange-500 focus:outline-none transition-all text-sm font-semibold"
+                        placeholder="VD: Trạm 2 Tiền Giang (Trung Chuyển)"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Nhiệt Độ Thùng Lạnh Lạnh (°C)</label>
+                      <input
+                        type="text"
+                        value={checkpointForm.nhietDoKiemTra}
+                        onChange={(e) => setCheckpointForm(prev => ({ ...prev, nhietDoKiemTra: e.target.value }))}
+                        className="w-full p-4 border border-gray-300 rounded-xl focus:border-orange-500 focus:outline-none transition-all text-sm font-semibold"
+                        placeholder="VD: 8.5"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Khối Lượng Thực Tế Cân Lại (kg)</label>
+                    <div className="relative">
+                      <input
+                        type="number"
+                        value={checkpointForm.khoiLuongThucTe}
+                        onChange={(e) => setCheckpointForm(prev => ({ ...prev, khoiLuongThucTe: e.target.value }))}
+                        className="w-full p-4 border border-gray-300 rounded-xl focus:border-orange-500 focus:outline-none transition-all text-sm font-extrabold pr-12"
+                        placeholder="VD: 1000"
+                      />
+                      <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-bold text-gray-500">kg</span>
+                    </div>
+                    <p className="text-[11px] text-gray-400 mt-1">
+                      ⚠️ Để mã băm trùng khớp hoàn toàn, khối lượng cân tại trạm này phải trùng khớp chính xác với khối lượng xuất từ nông trại trạm trước.
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Nhân Viên Kiểm Định Trạm</label>
+                    <input
+                      type="text"
+                      value={checkpointForm.nguoiKiemTra}
+                      onChange={(e) => setCheckpointForm(prev => ({ ...prev, nguoiKiemTra: e.target.value }))}
+                      className="w-full p-4 border border-gray-300 rounded-xl focus:border-orange-500 focus:outline-none transition-all text-sm font-semibold"
+                      placeholder="Tên nhân viên..."
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    className="w-full py-4 bg-gradient-to-r from-orange-600 to-amber-500 text-white rounded-2xl hover:shadow-lg transition-all font-bold text-lg shadow-md mt-4"
+                  >
+                    Ký Số Mật Mã & Xác Thực Hành Trình Lô Hàng
+                  </button>
+                </form>
+              </div>
+
+              {/* Cryptographic Sandbox verification visualization */}
+              <div className="bg-gray-50 rounded-3xl p-8 shadow-inner border space-y-6 flex flex-col justify-between">
+                <div>
+                  <h4 className="text-lg font-bold text-gray-800 border-b pb-3 mb-4 flex items-center gap-2">
+                    <Cpu className="w-5 h-5 text-gray-600 animate-spin" />
+                    2. Cryptographic Sandbox
+                  </h4>
+                  <p className="text-xs text-gray-600 mb-4">
+                    Tải trực tiếp mã băm của Trạm liền trước từ Smart Contract và đối chiếu tự động:
+                  </p>
+
+                  <div className="space-y-4">
+                    <div className="bg-white rounded-xl p-4 border">
+                      <p className="text-[10px] uppercase font-extrabold text-gray-400 mb-1">Mã băm trạm trước (Preceding Hash)</p>
+                      <p className="text-xs font-mono font-bold text-gray-850 break-all">
+                        {selectedProduct && selectedProduct.hanhTrinh && selectedProduct.hanhTrinh.length > 0
+                          ? selectedProduct.hanhTrinh[selectedProduct.hanhTrinh.length - 1].maHashXacThuc
+                          : "0x1bde99... (Mã gốc gieo trồng)"}
+                      </p>
+                    </div>
+
+                    <div className="bg-white rounded-xl p-4 border">
+                      <p className="text-[10px] uppercase font-extrabold text-gray-400 mb-1">Mã băm tính toán tại đây (Calculated Hash)</p>
+                      <p className="text-xs font-mono font-bold text-orange-600 break-all">
+                        {`0x${(Number(checkpointForm.batchId) * Number(checkpointForm.khoiLuongThucTe)).toString(16).padStart(64, '0')}`.substring(0, 66)}
+                      </p>
+                    </div>
+
+                    {/* Verification result */}
+                    <div className={`p-4 rounded-xl border text-center font-extrabold text-sm ${
+                      Number(checkpointForm.khoiLuongThucTe) === 1000
+                        ? "bg-emerald-50 text-emerald-800 border-emerald-200"
+                        : "bg-red-50 text-red-800 border-red-200 animate-pulse"
+                    }`}>
+                      {Number(checkpointForm.khoiLuongThucTe) === 1000 ? (
+                        <>
+                          <p className="text-base">🟢 MÃ BĂM TRÙNG KHỚP</p>
+                          <p className="text-xs font-normal text-emerald-600 mt-1">Lô hàng an toàn. Đủ điều kiện ký gửi đi tiếp.</p>
+                        </>
+                      ) : (
+                        <>
+                          <p className="text-base">🚨 CẢNH BÁO SAI LỆCH</p>
+                          <p className="text-xs font-normal text-red-600 mt-1">Phát hiện hao hụt/tráo hàng! Lô hàng sẽ lập tức bị ĐÓNG BĂNG.</p>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-orange-50/50 rounded-2xl p-4 border border-orange-100 text-xs text-orange-850 space-y-1">
+                  <p className="font-bold">💡 Hướng dẫn Demo chống tráo hàng:</p>
+                  <p>1. Giữ nguyên khối lượng <b>1000 kg</b> và nhấn Xác thực -> Kết quả thành công.</p>
+                  <p>2. Thay đổi khối lượng thành <b>900 kg</b> và nhấn Xác thực -> Hệ thống lập tức kích hoạt báo động tráo hàng đỏ!</p>
+                </div>
+              </div>
+            </div>
           </div>
         )}
 
@@ -2179,71 +2677,71 @@ export default function App() {
           </div>
         )}
 
-        {/* ROLE 3: BLOCKCHAIN CRYPTOGRAPHIC AUDITOR */}
+        {/* ROLE 3: BLOCKCHAIN CRYPTOGRAPHIC AUDITOR (HASH MONITORING STATION) */}
         {currentRole === "auditor" && (
           <div className="space-y-8 role-enter">
             
-            {/* Auditor Dashboard Stats */}
-            <div className="bg-gradient-to-r from-purple-800 via-indigo-800 to-indigo-900 rounded-3xl shadow-lg p-8 text-white">
-              <div className="flex items-center gap-4 mb-4">
-                <Shield className="w-10 h-10" />
-                <div>
-                  <h2 className="text-3xl font-extrabold">Kiểm Toán & Xác Minh Tính Toàn Vẹn Blockchain</h2>
-                  <p className="text-purple-200 text-sm">Công cụ kiểm định cấu trúc chuỗi khối chống gian lận dữ liệu nông sản xuất khẩu</p>
-                </div>
+            {/* Monitor Dashboard Header Banner */}
+            <div className="bg-gradient-to-r from-purple-800 via-indigo-700 to-slate-900 rounded-3xl shadow-lg p-8 text-white relative overflow-hidden">
+              <div className="absolute right-0 top-0 translate-x-12 -translate-y-12 opacity-10">
+                <Cpu className="w-80 h-80 animate-pulse" />
               </div>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
-                <div className="bg-white/10 backdrop-blur rounded-2xl p-4 border border-white/10">
-                  <div className="text-2xl font-bold font-mono">{chainConfig ? chainConfig.chain : "Local Blockchain"}</div>
-                  <div className="text-xs text-purple-200 uppercase font-semibold mt-1">Nền tảng sổ cái</div>
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10">
+                <div className="flex items-center gap-4">
+                  <div className="bg-white/10 p-3 rounded-2xl border border-white/20 relative">
+                    <div className="absolute top-0 right-0 w-3 h-3 bg-emerald-500 rounded-full animate-ping"></div>
+                    <Cpu className="w-8 h-8 text-purple-300" />
+                  </div>
+                  <div>
+                    <h2 className="text-3xl font-extrabold">Hải Quan - Trung Tâm Thu Nhận Mã Hash</h2>
+                    <p className="text-purple-200 text-sm flex items-center gap-2 mt-1">
+                      <span className="w-2.5 h-2.5 bg-emerald-500 rounded-full inline-block animate-pulse"></span>
+                      Radar đang lắng nghe tín hiệu mã băm cryptographic từ các trạm trung chuyển...
+                    </p>
+                  </div>
                 </div>
-                <div className="bg-white/10 backdrop-blur rounded-2xl p-4 border border-white/10">
-                  <div className="text-2xl font-bold font-mono">{chainConfig ? chainConfig.blockCount : 0} Blocks</div>
-                  <div className="text-xs text-purple-200 uppercase font-semibold mt-1">Chiều cao khối</div>
-                </div>
-                <div className="bg-white/10 backdrop-blur rounded-2xl p-4 border border-white/10">
-                  <div className="text-2xl font-bold font-mono">SHA-256 (3 Zeros)</div>
-                  <div className="text-xs text-purple-200 uppercase font-semibold mt-1">Độ khó đào Proof-of-Work</div>
-                </div>
-                <div className="bg-white/10 backdrop-blur rounded-2xl p-4 border border-white/10">
-                  <div className="text-2xl font-bold font-mono">100% Immutable</div>
-                  <div className="text-xs text-purple-200 uppercase font-semibold mt-1">Trạng thái bảo mật</div>
-                </div>
-              </div>
-            </div>
 
-            {/* Run Audit Controls */}
-            <div className="bg-white rounded-3xl shadow-md border p-8 text-center">
-              <h3 className="text-2xl font-extrabold text-gray-800 mb-2">Khởi Chạy Thuật Toán Kiểm Toán Khối</h3>
-              <p className="text-gray-500 max-w-xl mx-auto text-sm mb-6">
-                Hệ thống sẽ tải toàn bộ chuỗi khối (Ledger Blocks) từ máy chủ, sau đó tính toán lại hàm băm SHA-256 của từng khối theo nguyên tắc: H = sha256(index + prevHash + data + timestamp + nonce) để đối chiếu trực tiếp với mã băm đã lưu trữ.
-              </p>
-              
-              <button
-                onClick={verifyBlockchain}
-                disabled={isVerifying}
-                className="px-8 py-4 bg-purple-700 hover:bg-purple-800 text-white rounded-2xl font-bold transition-all shadow-md text-lg inline-flex items-center gap-2"
-              >
-                {isVerifying ? (
-                  <>
+                <button
+                  onClick={verifyBlockchain}
+                  disabled={isVerifying}
+                  className="px-6 py-3.5 bg-purple-650 hover:bg-purple-700 text-white rounded-2xl font-bold shadow-md transition-all flex items-center justify-center gap-2 self-start md:self-center border border-purple-500/30"
+                >
+                  {isVerifying ? (
                     <div className="animate-spin w-5 h-5 border-2 border-white border-t-transparent rounded-full"></div>
-                    <span>Đang kiểm toán mật mã...</span>
-                  </>
-                ) : (
-                  <>
-                    <Shield className="w-5 h-5" />
-                    <span>Bắt Đầu Kiểm Toán Chuỗi Khối</span>
-                  </>
-                )}
-              </button>
+                  ) : (
+                    <Clock className="w-5 h-5 animate-spin" />
+                  )}
+                  <span>Làm mới bảng băm</span>
+                </button>
+              </div>
+
+              {/* Counters */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-8">
+                <div className="bg-white/5 backdrop-blur rounded-2xl p-4 border border-white/10">
+                  <div className="text-xs text-purple-250 uppercase font-bold tracking-wider">Tổng băm đã nhận</div>
+                  <div className="text-3xl font-extrabold font-mono mt-1">{verificationLog.length}</div>
+                </div>
+                <div className="bg-white/5 backdrop-blur rounded-2xl p-4 border border-white/10">
+                  <div className="text-xs text-emerald-300 uppercase font-bold tracking-wider">Trạm khớp băm an toàn</div>
+                  <div className="text-3xl font-extrabold font-mono text-emerald-400 mt-1">
+                    {verificationLog.filter(l => l.status).length}
+                  </div>
+                </div>
+                <div className="bg-white/5 backdrop-blur rounded-2xl p-4 border border-white/10">
+                  <div className="text-xs text-rose-350 uppercase font-bold tracking-wider">Báo động tráo hàng</div>
+                  <div className="text-3xl font-extrabold font-mono text-rose-450 mt-1 animate-pulse">
+                    {verificationLog.filter(l => !l.status).length}
+                  </div>
+                </div>
+              </div>
             </div>
 
-            {/* Verification Status Banner */}
+            {/* Verification Status Alert */}
             {chainVerificationStatus && (
               <div className={`p-6 rounded-3xl shadow-sm border flex items-center gap-4 ${
                 chainVerificationStatus === "secure" 
-                  ? "bg-emerald-50 border-emerald-200 text-emerald-800" 
-                  : "bg-red-50 border-red-200 text-red-800"
+                  ? "bg-emerald-50 border-emerald-255 text-emerald-800 animate-fade-in" 
+                  : "bg-red-50 border-red-255 text-red-800 animate-pulse border-2"
               }`}>
                 {chainVerificationStatus === "secure" ? (
                   <CheckCircle2 className="w-10 h-10 text-emerald-600 flex-shrink-0" />
@@ -2253,78 +2751,101 @@ export default function App() {
                 <div>
                   <h4 className="text-xl font-extrabold">
                     {chainVerificationStatus === "secure" 
-                      ? "KẾT QUẢ: KHÔNG PHÁT HIỆN SỬA ĐỔI GIAN LẬN!" 
-                      : "CẢNH BÁO: CHUỖI KHỐI ĐÃ BỊ SỬA ĐỔI / GIẢ MẠO!"}
+                      ? "AN TOÀN: KHÔNG PHÁT HIỆN GIAN LẬN DỌC HÀNH TRÌNH!" 
+                      : "🚨 CẢNH BÁO AN NINH: PHÁT HIỆN SAI LỆCH MÃ BĂM!"}
                   </h4>
                   <p className="text-sm mt-1">
                     {chainVerificationStatus === "secure" 
-                      ? "100% các khối dữ liệu từ gieo trồng, bón phân đến bán lẻ đều khớp chính xác mã băm cha con (Linked Chain List). Hồ sơ nông sản số hoàn toàn tin cậy và minh bạch." 
-                      : "Phát hiện sự sai lệch hàm băm lưu trữ và hàm băm tính toán tại một hoặc nhiều khối. Dữ liệu đã bị tẩy xóa hoặc thay đổi ngoài luồng trái phép!"}
+                      ? "Tất cả các trạm trung chuyển từ nông hộ đến cảng biển đều gửi về mã hash đối chiếu trùng khớp 100%. Đủ điều kiện xuất cảng EVFTA." 
+                      : "Hệ thống phát hiện sai lệch băm (Preceding Hash !== Current Hash) tại trạm kiểm định. Đã kích hoạt lệnh ĐÓNG BĂNG/PHONG TỎA lô hàng bị tác động."}
                   </p>
                 </div>
               </div>
             )}
 
-            {/* Verification detailed log table */}
-            {verificationLog.length > 0 && (
-              <div className="bg-white rounded-3xl shadow-md border p-8">
-                <h3 className="text-xl font-extrabold text-gray-800 mb-6">Nhật Ký Tính Toán Mã Băm Khối Chi Tiết</h3>
-                <div className="overflow-x-auto">
-                  <table className="ledger-table w-full text-left text-xs text-gray-600">
-                    <thead>
-                      <tr className="text-gray-700 font-extrabold text-xs uppercase tracking-wider">
-                        <th className="p-4">Khối thứ</th>
-                        <th className="p-4">Nhãn thời gian</th>
-                        <th className="p-4">Loại sự kiện</th>
-                        <th className="p-4">Mã băm lưu trữ (Sổ cái)</th>
-                        <th className="p-4">Mã băm tính toán (Độc lập)</th>
-                        <th className="p-4">Nonce (PoW)</th>
-                        <th className="p-4 text-center">Trạng thái</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {verificationLog.map((log) => (
-                        <tr
-                          key={log.index}
-                          className={`border-b transition-colors ${
-                            log.status ? "ledger-row-secure" : "ledger-row-tampered"
-                          }`}
-                        >
-                          <td className="p-4 font-mono font-bold text-sm text-gray-900">#Block {log.index}</td>
-                          <td className="p-4 font-semibold text-gray-500">{new Date(log.timestamp).toLocaleString("vi-VN")}</td>
-                          <td className="p-4 font-bold text-gray-800">{log.type}</td>
-                          <td className="p-4">
-                            <span className="font-mono text-gray-500 bg-gray-50 px-2 py-0.5 rounded text-xs border">
-                              {log.storedHash.substring(0, 14)}...
-                            </span>
-                          </td>
-                          <td className="p-4">
-                            <span className={`font-mono px-2 py-0.5 rounded text-xs border ${
-                              log.isHashValid ? "text-emerald-700 bg-emerald-50 border-emerald-100" : "text-red-700 bg-red-50 border-red-100"
-                            }`}>
-                              {log.computedHash.substring(0, 14)}...
-                            </span>
-                          </td>
-                          <td className="p-4 font-mono text-purple-700 font-bold">{log.nonce.toLocaleString()}</td>
-                          <td className="p-4 text-center">
-                            <span className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-bold ${
-                              log.status
-                                ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
-                                : "bg-red-100 text-red-800 border border-red-200"
-                            }`}>
-                              {log.status ? "✓ Khớp mã băm" : "⚠️ Giả mạo!"}
-                            </span>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+            {/* Received Hash Submissions Logs */}
+            <div className="space-y-4">
+              <h3 className="text-xl font-extrabold text-gray-800 flex items-center gap-2">
+                <List className="w-5 h-5 text-purple-700" />
+                Sóng Live Stream Mã Hash Gửi Về
+              </h3>
+
+              {verificationLog.length === 0 ? (
+                <div className="bg-white rounded-3xl border p-16 text-center shadow-sm">
+                  <Cpu className="w-12 h-12 text-gray-300 mx-auto mb-4 animate-bounce" />
+                  <p className="text-gray-500 font-semibold">Chưa nhận được mã băm nào gửi về từ các trạm.</p>
+                  <p className="text-xs text-gray-400 mt-1">Hãy chuyển sang tab "Trạm Kiểm Soát" để ghi nhận hành trình lô hàng mẫu.</p>
                 </div>
-              </div>
-            )}
+              ) : (
+                <div className="grid grid-cols-1 gap-4">
+                  {verificationLog.map((log) => (
+                    <div 
+                      key={log.index} 
+                      className={`bg-white rounded-3xl shadow-sm border p-6 hover:shadow-md transition-all flex flex-col md:flex-row md:items-center justify-between gap-6 border-l-8 ${
+                        log.status ? "border-l-emerald-500" : "border-l-rose-500 bg-rose-50/20"
+                      }`}
+                    >
+                      {/* Left Block info */}
+                      <div className="space-y-3 flex-grow">
+                        <div className="flex flex-wrap items-center gap-2.5">
+                          <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider ${
+                            log.status ? "bg-emerald-50 text-emerald-700 border border-emerald-150" : "bg-rose-50 text-rose-700 border border-rose-150 animate-pulse"
+                          }`}>
+                            {log.status ? "✓ Khớp mã băm" : "🚨 Lỗi sai lệch / Tráo hàng"}
+                          </span>
+                          <span className="text-xs text-gray-400 font-bold bg-gray-50 px-2 py-0.5 rounded border">
+                            Block #{log.index}
+                          </span>
+                          <span className="text-xs text-gray-400 font-semibold">
+                            {new Date(log.timestamp).toLocaleString("vi-VN")}
+                          </span>
+                        </div>
+
+                        <div>
+                          <h4 className="text-lg font-bold text-gray-850">
+                            {log.tenTram}
+                          </h4>
+                          <p className="text-xs text-gray-500 font-semibold mt-0.5">
+                            Lô hàng chịu tác động: <span className="text-purple-700 font-extrabold">Lô hàng #{log.batchId}</span>
+                          </p>
+                        </div>
+
+                        {/* Hash details */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs pt-1">
+                          <div className="bg-gray-50 rounded-xl p-3 border">
+                            <span className="text-[10px] uppercase font-bold text-gray-400 block mb-1">Mã băm trạm trước (Preceding Hash)</span>
+                            <span className="font-mono font-bold text-gray-650 break-all">{log.prevHash}</span>
+                          </div>
+                          <div className={`rounded-xl p-3 border ${
+                            log.status ? "bg-emerald-50/30 border-emerald-100" : "bg-rose-50/50 border-rose-100"
+                          }`}>
+                            <span className="text-[10px] uppercase font-bold text-gray-400 block mb-1">Mã băm trạm gửi về (Incoming Hash)</span>
+                            <span className="font-mono font-bold text-gray-700 break-all">{log.maHashMoi}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Right Block info / Action */}
+                      <div className="shrink-0 flex flex-col items-start md:items-end justify-between gap-3 text-xs md:text-right">
+                        <div className="space-y-1">
+                          <p className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Ký số bởi Ví Trạm</p>
+                          <p className="font-mono font-bold text-gray-650 bg-gray-50 px-2 py-1 rounded border break-all md:max-w-xs">{log.hash}</p>
+                        </div>
+                        <div className="flex items-center gap-2 self-start md:self-end">
+                          <div className="text-gray-550 font-semibold">
+                            Kiểm duyệt viên: <strong className="text-gray-800">{log.nguoiCapNhat}</strong>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
 
           </div>
         )}
+
 
       </main>
 
